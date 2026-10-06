@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Scan to Join{% endblock %}
+{% block body_class %}host-page{% endblock %}
+{% block content %}
+<div class="ambient-layer">
+  <span class="ambient-orb orb-1"></span>
+  <span class="ambient-orb orb-2"></span>
+  <span class="ambient-orb orb-3"></span>
+</div>
+
+<div class="qr-page-wrap">
+  {% if has_wifi_qr %}
+  <div class="qr-card step-card wiggle-card">
+    <div class="step-badge">Step 1 🛜</div>
+    <h1>Hop on the WiFi!</h1>
+    <p class="subtitle">Point your phone at this and tap "Join" — no gymnastics required</p>
+    <img class="qr-img" src="{{ url_for('wifi_qr_png') }}" alt="WiFi QR code" />
+    <p class="url-fallback">Network: {{ wifi_ssid }}</p>
+  </div>
+  <div class="qr-card step-card wiggle-card">
+    <div class="step-badge">Step 2 📸</div>
+    <h1>Scan Yourself In</h1>
+    <p class="subtitle">Aim your camera here — no spells, just a QR code</p>
+    <img id="register-qr-img" class="qr-img" src="{{ url_for('qr_png') }}" alt="Register QR code" />
+    <p id="register-url-text" class="url-fallback">{{ register_url }}</p>
+    <p class="count-line">🔥 <span id="count">0</span> legends have joined the party</p>
+  </div>
+  {% else %}
+  <div class="qr-card wiggle-card">
+    <h1>Scan Yourself In</h1>
+    <p class="subtitle">Aim your camera here — no spells, just a QR code</p>
+    <img id="register-qr-img" class="qr-img" src="{{ url_for('qr_png') }}" alt="QR code" />
+    <p id="register-url-text" class="url-fallback">{{ register_url }}</p>
+    <p class="count-line">🔥 <span id="count">0</span> legends have joined the party</p>
+  </div>
+  {% endif %}
+</div>
+
+<script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/qr.js') }}"></script>
+{% endblock %}

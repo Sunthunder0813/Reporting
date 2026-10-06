@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Reconnect{% endblock %}
+{% block body_class %}mobile-page{% endblock %}
+{% block content %}
+<div class="mobile-wrap">
+  <div class="card">
+    <h1>Welcome back!</h1>
+    <p class="subtitle">Log in to reconnect</p>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="flash">{{ messages[0] }}</div>
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('login') }}">
+      <label class="field-label" for="username">Full Name</label>
+      <input
+        type="text"
+        id="username"
+        name="username"
+        placeholder="Your full name"
+        value="{{ username }}"
+        autocomplete="name"
+        required
+      />
+
+      <label class="field-label" for="password">Password</label>
+      <input
+        type="password"
+        id="password"
+        name="password"
+        placeholder="Your password"
+        autocomplete="current-password"
+        required
+      />
+
+      <button type="submit" class="primary-btn">Log In</button>
+    </form>
+
+    <p class="subtitle" style="margin-top: 18px;">
+      New here? <a href="{{ url_for('register') }}">Register instead</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

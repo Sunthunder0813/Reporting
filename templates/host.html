@@ -1,0 +1,52 @@
+﻿{% extends "base.html" %}
+{% block title %}Join the Presentation{% endblock %}
+{% block body_class %}host-page{% endblock %}
+{% block content %}
+<div class="ambient-layer">
+  <span class="ambient-orb orb-1"></span>
+  <span class="ambient-orb orb-2"></span>
+  <span class="ambient-orb orb-3"></span>
+</div>
+
+<div class="qr-page-shell">
+  <div class="qr-page-hero">
+    <span class="hero-eyebrow">You're invited</span>
+    <h1 class="hero-title">Join the Presentation</h1>
+    <p class="hero-subtitle">Two quick scans and you're in the room</p>
+  </div>
+
+  <div class="qr-page-wrap">
+    {% if has_wifi_qr %}
+    <div class="qr-card step-card wiggle-card">
+      <div class="step-badge">Step 1</div>
+      <h2>Hop on the WiFi</h2>
+      <p class="subtitle">Point your phone at this and tap "Join"</p>
+      <img class="qr-img" src="{{ url_for('wifi_qr_png') }}" alt="WiFi QR code" />
+      <p class="url-fallback">Network: {{ wifi_ssid }}</p>
+    </div>
+    <div class="qr-card step-card wiggle-card">
+      <div class="step-badge">Step 2</div>
+      <h2>Scan Yourself In</h2>
+      <p class="subtitle">Aim your camera here to register</p>
+      <img id="register-qr-img" class="qr-img" src="{{ url_for('qr_png') }}" alt="Register QR code" />
+      <p id="register-url-text" class="url-fallback">{{ register_url }}</p>
+    </div>
+    {% else %}
+    <div class="qr-card wiggle-card">
+      <h2>Scan Yourself In</h2>
+      <p class="subtitle">Aim your camera here to register</p>
+      <img id="register-qr-img" class="qr-img" src="{{ url_for('qr_png') }}" alt="QR code" />
+      <p id="register-url-text" class="url-fallback">{{ register_url }}</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="qr-page-footer">
+    <span class="count-pill count-pill-lg"><span id="count">0</span> joined</span>
+    <a href="{{ url_for('leaderboard') }}" class="qr-toggle-btn leaderboard-link" target="_blank">View Live Attendees</a>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/qr.js') }}?v={{ range(100000, 999999) | random }}"></script>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Leaderboard{% endblock %}
+{% block body_class %}host-page{% endblock %}
+{% block content %}
+<div class="ambient-layer">
+  <span class="ambient-orb orb-1"></span>
+  <span class="ambient-orb orb-2"></span>
+  <span class="ambient-orb orb-3"></span>
+</div>
+
+<div class="leaderboard-shell">
+  <section class="sb-panel">
+    <header class="sb-head">
+      <div>
+        <h1 class="sb-title">Scoreboard</h1>
+        <p class="sb-sub"><span id="count">0</span> players joined</p>
+      </div>
+      <a href="{{ url_for('host') }}" class="qr-toggle-btn" target="_blank">Join QR</a>
+    </header>
+
+    <div class="sb-cols" aria-hidden="true">
+      <span>Rank</span>
+      <span>Player</span>
+      <span>Points</span>
+    </div>
+
+    <div id="sb-scroll" class="sb-scroll">
+      <div id="sb-track" class="sb-track"></div>
+      <div id="sb-empty" class="sb-empty">Nobody has joined yet. Scan the QR code to get on the board.</div>
+    </div>
+  </section>
+</div>
+
+<!-- Capture overlay + audio: unchanged -->
+<div id="capture-overlay" class="capture-overlay" style="display: none;">
+  <div class="pokeball-entry">
+    <div class="pokeball-shake">
+      <div class="pokeball-big"></div>
+    </div>
+  </div>
+  <div class="capture-reveal-big">
+    <img id="capture-photo-big" src="" alt="" />
+    <div id="capture-name-big" class="capture-name-big"></div>
+  </div>
+</div>
+
+<audio id="capture-audio" src="{{ url_for('static', filename='bg_music/whos-that-pokemon.mp4') }}" preload="auto"></audio>
+
+<div id="sound-unlock" class="sound-unlock">Tap anywhere to enable sound</div>
+
+<script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/leaderboard.js') }}?v={{ range(100000, 999999) | random }}"></script>
+
+<!-- Spin the wheel + red light overlays. Loads after leaderboard.js so it can reuse its socket. -->
+<script src="{{ url_for('static', filename='js/effects.js') }}?v={{ range(100000, 999999) | random }}"></script>
+{% endblock %}

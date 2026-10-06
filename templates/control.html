@@ -1,0 +1,95 @@
+﻿{% extends "base.html" %}
+{% block title %}Control Panel{% endblock %}
+{% block body_class %}ctl-body{% endblock %}
+{% block content %}
+<div class="ambient-layer">
+  <span class="ambient-orb orb-1"></span>
+  <span class="ambient-orb orb-2"></span>
+  <span class="ambient-orb orb-3"></span>
+</div>
+
+<div class="ctl-shell">
+  <!-- Top nav: alert everyone, spin the wheel, game controls, points tools -->
+  <header class="ctl-nav">
+    <div class="ctl-row">
+      <div class="ctl-brand">
+        <span class="hero-eyebrow">Host only</span>
+        <h1 class="ctl-title">Control Panel</h1>
+      </div>
+      <span class="count-pill"><span id="count">0</span> players</span>
+      <span class="count-pill ctl-pill-on"><span id="online-count">0</span> online</span>
+      <span class="count-pill ctl-pill-off"><span id="offline-count">0</span> disconnected</span>
+      <p id="status-msg" class="flash hidden"></p>
+
+      <a href="{{ url_for('leaderboard') }}" target="_blank" class="ctl-preview" title="Open the live leaderboard">
+        <span class="ctl-preview-label">Live leaderboard</span>
+        <span class="ctl-preview-frame">
+          <iframe src="{{ url_for('leaderboard') }}" scrolling="no" tabindex="-1" allow="vibrate 'none'"></iframe>
+        </span>
+      </a>
+    </div>
+
+    <div class="ctl-row">
+      <button type="button" id="red-toggle-btn" class="ctl-btn ctl-red">🚨 Alert everyone</button>
+      <button type="button" id="red-clear-btn" class="ctl-btn ctl-neutral hidden">Stop all alerts</button>
+      <span class="ctl-sep"></span>
+      <button type="button" id="wheel-btn" class="ctl-btn ctl-purple">🎡 Spin the wheel</button>
+      <button type="button" id="wheel-close-btn" class="ctl-btn ctl-neutral">Close wheel</button>
+      <span class="ctl-sep"></span>
+      <button type="button" id="start-btn" class="ctl-btn ctl-primary" disabled>Start Game</button>
+      <button type="button" id="reset-btn" class="ctl-btn ctl-neutral">Reset</button>
+    </div>
+
+    <div class="ctl-row">
+      <label class="ctl-check"><input type="checkbox" id="select-all-checkbox" /> Select all</label>
+      <button type="button" id="give-btn" class="ctl-btn ctl-green" disabled>+ Selected</button>
+      <button type="button" id="take-btn" class="ctl-btn ctl-pink" disabled>&minus; Selected</button>
+      <button type="button" id="delete-selected-btn" class="ctl-btn ctl-neutral" disabled>Delete selected</button>
+      <button type="button" id="reset-scores-btn" class="ctl-link">Reset all scores</button>
+    </div>
+  </header>
+
+  <!-- All players, 5 per row -->
+  <main>
+    <div id="player-grid" class="ctl-grid"></div>
+  </main>
+</div>
+
+<style>
+  .ctl-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    margin-left: auto;
+    text-decoration: none;
+  }
+  .ctl-preview-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #9ca3af;
+  }
+  .ctl-preview-frame {
+    display: block;
+    width: 200px;
+    height: 113px;
+    overflow: hidden;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: #05060e;
+  }
+  .ctl-preview-frame iframe {
+    width: 1280px;
+    height: 720px;
+    border: 0;
+    transform: scale(0.15625); /* 200 / 1280 -- keep this in sync with the width above */
+    transform-origin: top left;
+    pointer-events: none; /* preview only -- click the card itself to open the real page */
+  }
+</style>
+
+<script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/control.js') }}?v={{ range(100000, 999999) | random }}"></script>
+{% endblock %}

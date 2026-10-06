@@ -1,0 +1,27 @@
+﻿{% extends "base.html" %}
+{% block title %}Take Your Photo{% endblock %}
+{% block body_class %}mobile-page{% endblock %}
+{% block content %}
+<div class="mobile-wrap">
+  <div class="card camera-card">
+    <h1>Hi, {{ full_name.split(' ')[0] }}!</h1>
+    <p class="subtitle">Center your face in the circle</p>
+
+    <div class="camera-stage">
+      <video id="video" autoplay playsinline muted></video>
+      <div id="face-guide" class="face-guide"></div>
+      <canvas id="canvas" class="hidden"></canvas>
+    </div>
+
+    <p id="cam-loading" class="subtitle" style="margin: 10px 0 0;">Starting camera…</p>
+    <p id="cam-error" class="flash hidden"></p>
+
+    <button id="capture-btn" class="primary-btn hidden">Take Photo</button>
+    <button id="retake-btn" class="secondary-btn hidden">Retake</button>
+    <button id="confirm-btn" class="primary-btn hidden">Confirm &amp; Join</button>
+    <button id="retry-btn" class="secondary-btn hidden">Try Again</button>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/camera.js') }}"></script>
+{% endblock %}

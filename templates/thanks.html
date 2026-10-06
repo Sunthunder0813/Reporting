@@ -1,0 +1,366 @@
+﻿{% extends "base.html" %}
+{% block title %}You're In!{% endblock %}
+{% block body_class %}mobile-page{% endblock %}
+{% block content %}
+<div id="bounce-layer" class="bounce-layer"></div>
+
+<div id="game-start-overlay" class="game-start-overlay hidden">
+  <h1 class="hero-title">Game Starting!</h1>
+  <p class="hero-subtitle">Look at the screen</p>
+</div>
+
+<!-- One tap anywhere lets the phone play the red-light alarm sound later -->
+<div id="sound-hint" class="sound-unlock">Tap anywhere to enable sound</div>
+
+<!-- Red light alarm: shown/hidden by the server's red_light / red_light_stop events -->
+<div id="red-alert" class="red-alert" aria-live="assertive">
+  <div class="red-alert-icon">🚨</div>
+  <div class="red-alert-title">RED LIGHT</div>
+  <div id="red-alert-sub" class="red-alert-sub">Stop what you're doing and look up!</div>
+</div>
+<style>
+  .red-alert {
+    position: fixed; inset: 0; z-index: 99999;
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; padding: 24px; text-align: center; color: #fff;
+    background: #b91c1c;
+    animation: red-alert-flash 0.5s ease-in-out infinite alternate;
+  }
+  .red-alert.on { display: flex; }
+  @keyframes red-alert-flash { from { background: #7f1d1d; } to { background: #ef4444; } }
+  .red-alert-icon { font-size: clamp(64px, 22vw, 160px); line-height: 1; }
+  .red-alert-title { font-size: clamp(38px, 13vw, 100px); font-weight: 900; letter-spacing: 0.04em; }
+  .red-alert-sub { font-size: clamp(16px, 4vw, 26px); opacity: 0.92; }
+  @media (prefers-reduced-motion: reduce) {
+    .red-alert { animation: none; background: #dc2626; }
+  }
+
+  /* Blocks taps on the rest of the page while a red alert or the
+     spin-the-wheel overlay is showing. The overlays themselves opt
+     back into pointer-events so the wheel's tap-to-dismiss still works. */
+  body.fx-locked { pointer-events: none; }
+  body.fx-locked .red-alert.on,
+  body.fx-locked .fx-wheel.on { pointer-events: auto; }
+</style>
+
+<script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
+<script>
+  const ATTENDEE_ID = {{ user_id|tojson }};
+  const socket = io();
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    }[c]));
+  }
+
+  function announcePresence() {
+    if (ATTENDEE_ID) {
+      socket.emit("attendee_online", { id: ATTENDEE_ID });
+    }
+  }
+
+  socket.on("connect", announcePresence);
+  socket.on("game_start", () => {
+    document.getElementById("game-start-overlay")?.classList.remove("hidden");
+  });
+  // DOM-only toggle -- deliberately never navigates/reloads, so the
+  // attendee's socket connection (and their spot in connected_attendees
+  // server-side) is never interrupted by a start/reset cycle.
+  socket.on("game_reset", () => {
+    document.getElementById("game-start-overlay")?.classList.add("hidden");
+    // The red light is NOT cleared here: only the host's OFF switch ends it.
+  });
+
+  // ---------------------------------------------------------------------
+  // Red light alarm. Handled right here (not in effects.js) so it works
+  // on phones no matter what else is loaded. DOM-only: never navigates,
+  // so the attendee's presence is never interrupted.
+  // ---------------------------------------------------------------------
+  window.__fxRedInline = true; // tells effects.js not to show a second alarm
+  const RED_SOUND_URL = {{ url_for('static', filename='bg_music/alarm.mp3')|tojson }};
+  const redAlertEl = document.getElementById("red-alert");
+  let redAudio = null;
+  let soundUnlocked = false;
+
+  // Shared lock flag so red alert (here) and the wheel (effects.js) can
+  // both hold the "block taps" state without stepping on each other.
+  window.__fxLock = window.__fxLock || { red: false, wheel: false };
+  function __fxApplyLock() {
+    document.body.classList.toggle("fx-locked", window.__fxLock.red || window.__fxLock.wheel);
+  }
+
+  function getRedAudio() {
+    if (!redAudio) {
+      redAudio = new Audio(RED_SOUND_URL);
+      redAudio.loop = true;
+    }
+    return redAudio;
+  }
+
+  // Phones only allow sound after a tap on this page; unlock it silently.
+  function unlockSound() {
+    if (soundUnlocked) return;
+    soundUnlocked = true;
+    try {
+      const a = getRedAudio();
+      a.muted = true;
+      a.volume = 0;
+      // Pause in the SAME synchronous tick as play(), rather than waiting for
+      // the play() promise to resolve. Some Android WebViews apply `.muted`
+      // one audio frame late, so if we wait for the promise first, a brief
+      // real chirp of the siren can leak out before we get a chance to pause
+      // it -- with `loop = true` this can read as "the alarm auto-played."
+      // Pausing immediately closes that window; the resulting "play()
+      // request was interrupted" rejection is expected and harmless.
+      const playPromise = a.play();
+      a.pause();
+      a.currentTime = 0;
+      if (playPromise && typeof playPromise.catch === "function") playPromise.catch(() => {});
+      a.muted = false;
+      a.volume = 1;
+    } catch (e) { /* ignore */ }
+  }
+  ["pointerdown", "touchstart"].forEach((ev) =>
+    document.addEventListener(ev, unlockSound, { passive: true })
+  );
+
+  function stopRed() {
+    if (!redAlertEl.classList.contains("on")) return; // nothing to stop (also keeps polling quiet)
+    redAlertEl.classList.remove("on");
+    if (redAudio) {
+      redAudio.pause();
+      redAudio.currentTime = 0;
+    }
+    if (navigator.vibrate) navigator.vibrate(0);
+    window.__fxLock.red = false;
+    __fxApplyLock();
+  }
+
+  function startRed() {
+    if (redAlertEl.classList.contains("on")) return; // already on: don't restart sound/vibration
+    console.log("[red light] ON");
+    redAlertEl.classList.add("on");
+    window.__fxLock.red = true;
+    __fxApplyLock();
+    try {
+      const a = getRedAudio();
+      a.muted = false;
+      a.currentTime = 0;
+      a.play().catch(() => {}); // blocked or missing file: stay silent
+    } catch (e) { /* ignore */ }
+    try {
+      if (navigator.vibrate) navigator.vibrate([400, 150, 400, 150, 400, 150, 400]);
+    } catch (e) { /* ignore */ }
+  }
+
+  // --- Reliable delivery: live socket events + a polling safety net --------
+  // A one-shot socket message can be missed (phone asleep, weak Wi-Fi, a socket
+  // that died without noticing). So the phone ALSO checks the server's red-light
+  // state every ~1.5s and always converges to it. `seq` stops a slow/old answer
+  // from ever overriding a newer one; `boot` resets it if the server restarts.
+  let redSeq = -1;
+  let redBoot = null;
+
+  // state = { on, users, seq, boot }. Red if the host alerted EVERYONE (`on`)
+  // or alerted THIS attendee on their own (their id is in `users`).
+  function applyRedState(state) {
+    if (!state) return;
+    if (state.boot !== undefined) {
+      if (state.boot !== redBoot) { redBoot = state.boot; redSeq = -1; }
+      if (typeof state.seq === "number") {
+        if (state.seq < redSeq) return; // stale answer
+        redSeq = state.seq;
+      }
+    }
+    const forAll = !!state.on;
+    const forMe =
+      ATTENDEE_ID !== "" &&
+      (state.users || []).map(String).includes(String(ATTENDEE_ID));
+
+    const sub = document.getElementById("red-alert-sub");
+    if (sub) {
+      sub.textContent = forAll
+        ? "Stop what you're doing and look up!"
+        : "The host is calling you out. Look up!";
+    }
+    if (forAll || forMe) startRed(); else stopRed();
+  }
+
+  socket.on("red_state", applyRedState);
+
+  async function pollRedState() {
+    try {
+      const res = await fetch("/api/red-state", { cache: "no-store" });
+      const d = await res.json();
+      applyRedState(d);
+    } catch (e) { /* network hiccup: the next poll will catch up */ }
+  }
+  pollRedState();
+  setInterval(() => {
+    if (document.visibilityState === "visible") pollRedState();
+  }, 1500);
+  window.addEventListener("online", pollRedState);
+  window.addEventListener("pageshow", pollRedState);
+
+  // Match the host's real ON/OFF state whenever we connect or the phone wakes up.
+  const askRedState = () => socket.emit("red_state_request");
+  socket.on("connect", askRedState);
+  if (socket.connected) askRedState();
+
+  // The red light (effects.js) reuses this same `socket`, so it needs no
+  // extra connection and never touches presence tracking.
+  document.addEventListener("pointerdown", () => {
+    document.getElementById("sound-hint")?.classList.add("hidden");
+  }, { once: true });
+
+  // Re-announce if the phone's browser tab wakes back up from background
+  // (locking the phone can pause the socket without fully closing it).
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      announcePresence();
+      askRedState();
+      pollRedState();
+    }
+  });
+
+  // ---------------------------------------------------------------------
+  // DVD-screensaver-style bouncing gallery of every registered attendee,
+  // with real circle-circle collision between attendees, not just edges.
+  // ---------------------------------------------------------------------
+  const bounceLayer = document.getElementById("bounce-layer");
+  const bouncers = []; // { userId, el, x, y, vx, vy, w, h, rot, vrot }
+
+  function randomVelocity() {
+    const speed = 40 + Math.random() * 40; // px/sec
+    const angle = Math.random() * Math.PI * 2;
+    return { vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed };
+  }
+
+  function spawnBouncer(user) {
+    if (bouncers.some((b) => b.userId === user.id)) return;
+
+    const el = document.createElement("div");
+    el.className = "bouncer";
+    el.innerHTML = `
+      <img src="${escapeHtml(user.photo_url)}" alt="" />
+      <span class="bouncer-name">${escapeHtml(user.full_name)}</span>
+    `;
+    bounceLayer.appendChild(el);
+
+    const w = 84, h = 104;
+    const { vx, vy } = randomVelocity();
+
+    bouncers.push({
+      userId: user.id,
+      el,
+      x: Math.random() * Math.max(window.innerWidth - w, 1),
+      y: Math.random() * Math.max(window.innerHeight - h, 1),
+      vx,
+      vy,
+      w,
+      h,
+      rot: Math.random() * 360,
+      vrot: (Math.random() - 0.5) * 40, // deg/sec
+    });
+  }
+
+  function resolveCollisions() {
+    // Treat each bouncer as a circle centered on its avatar for collision
+    // purposes -- the name label below it is ignored for physics.
+    const radius = 42;
+
+    for (let i = 0; i < bouncers.length; i++) {
+      for (let j = i + 1; j < bouncers.length; j++) {
+        const a = bouncers[i];
+        const b = bouncers[j];
+
+        const aCx = a.x + a.w / 2;
+        const aCy = a.y + radius;
+        const bCx = b.x + b.w / 2;
+        const bCy = b.y + radius;
+
+        const dx = bCx - aCx;
+        const dy = bCy - aCy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const minDist = radius * 2;
+
+        if (dist > 0 && dist < minDist) {
+          const nx = dx / dist;
+          const ny = dy / dist;
+
+          const overlap = minDist - dist;
+          a.x -= (nx * overlap) / 2;
+          a.y -= (ny * overlap) / 2;
+          b.x += (nx * overlap) / 2;
+          b.y += (ny * overlap) / 2;
+
+          const avn = a.vx * nx + a.vy * ny;
+          const bvn = b.vx * nx + b.vy * ny;
+
+          a.vx += (bvn - avn) * nx;
+          a.vy += (bvn - avn) * ny;
+          b.vx += (avn - bvn) * nx;
+          b.vy += (avn - bvn) * ny;
+        } else if (dist === 0) {
+          const angle = Math.random() * Math.PI * 2;
+          a.x -= Math.cos(angle);
+          a.y -= Math.sin(angle);
+          b.x += Math.cos(angle);
+          b.y += Math.sin(angle);
+        }
+      }
+    }
+  }
+
+  let lastTime = null;
+  function tick(now) {
+    if (lastTime === null) lastTime = now;
+    const dt = Math.min((now - lastTime) / 1000, 0.05);
+    lastTime = now;
+
+    const maxX = window.innerWidth - 1;
+    const maxY = window.innerHeight - 1;
+
+    bouncers.forEach((b) => {
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      b.rot += b.vrot * dt;
+
+      if (b.x <= 0) { b.x = 0; b.vx = Math.abs(b.vx); }
+      if (b.x + b.w >= maxX) { b.x = maxX - b.w; b.vx = -Math.abs(b.vx); }
+      if (b.y <= 0) { b.y = 0; b.vy = Math.abs(b.vy); }
+      if (b.y + b.h >= maxY) { b.y = maxY - b.h; b.vy = -Math.abs(b.vy); }
+    });
+
+    resolveCollisions();
+
+    bouncers.forEach((b) => {
+      b.el.style.transform = `translate(${b.x}px, ${b.y}px) rotate(${b.rot}deg)`;
+    });
+
+    requestAnimationFrame(tick);
+  }
+
+  fetch("/api/users")
+    .then((r) => r.json())
+    .then((users) => {
+      users.forEach(spawnBouncer);
+      requestAnimationFrame(tick);
+    });
+
+  socket.on("new_registration", spawnBouncer);
+  socket.on("users_removed", (data) => {
+    (data.ids || []).forEach((id) => {
+      const idx = bouncers.findIndex((b) => b.userId === id);
+      if (idx !== -1) {
+        bouncers[idx].el.remove();
+        bouncers.splice(idx, 1);
+      }
+    });
+  });
+</script>
+
+<!-- Spin-the-wheel overlay (the red light is handled inline above) -->
+<script src="{{ url_for('static', filename='js/effects.js') }}?v={{ range(100000, 999999) | random }}"></script>
+{% endblock %}

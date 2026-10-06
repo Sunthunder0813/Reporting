@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Add Team Members{% endblock %}
+{% block body_class %}mobile-page{% endblock %}
+{% block content %}
+<div class="mobile-wrap team-wrap">
+  <div class="card team-card">
+    <span class="hero-eyebrow">Building your team</span>
+    <h1>{{ leader_full_name.split(' ')[0] }}'s Group</h1>
+    <p class="subtitle">Add your teammates one at a time — each gets their own photo</p>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="flash">{{ messages[0] }}</div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="team-leader-row">
+      <img class="team-avatar team-avatar-leader" src="{{ leader_photo_url }}" alt="" />
+      <div class="team-leader-info">
+        <span class="team-tag team-tag-leader">Team Leader</span>
+        <span class="team-name">{{ leader_full_name }}</span>
+      </div>
+    </div>
+
+    <div class="team-members-section">
+      <div class="team-members-head">
+        <span>Team Members</span>
+        <span class="team-count-badge">{{ members|length }}</span>
+      </div>
+
+      {% if members %}
+      <div class="team-members-list">
+        {% for m in members %}
+        <div class="team-member-row">
+          <img class="team-avatar team-avatar-member" src="{{ m.photo_url }}" alt="" />
+          <span class="team-name team-name-member">{{ m.full_name }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="team-members-empty">No members added yet — it's just you so far</div>
+      {% endif %}
+    </div>
+
+    <form method="POST" action="{{ url_for('add_member') }}" class="team-form">
+      <label class="field-label" for="full_name">Member's Full Name</label>
+      <input type="text" id="full_name" name="full_name" placeholder="Maria Santos" autocomplete="off" />
+
+      <label class="field-label">Gender</label>
+      <div class="gender-toggle">
+        <input type="radio" id="male" name="gender" value="male" />
+        <label for="male" class="gender-btn">Male</label>
+        <input type="radio" id="female" name="gender" value="female" />
+        <label for="female" class="gender-btn">Female</label>
+      </div>
+
+      <button type="submit" name="action" value="add" class="primary-btn">Add Member &amp; Take Photo</button>
+      <button type="submit" name="action" value="finish" class="team-finish-btn">Finish Group</button>
+      <p class="team-finish-hint">You can finish anytime — solo or with your whole team</p>
+    </form>
+  </div>
+</div>
+{% endblock %}

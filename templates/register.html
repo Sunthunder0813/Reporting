@@ -1,0 +1,55 @@
+﻿{% extends "base.html" %}
+{% block title %}Register{% endblock %}
+{% block body_class %}mobile-page{% endblock %}
+{% block content %}
+<div class="mobile-wrap">
+  <div class="card">
+    <h1>Welcome!</h1>
+    <p class="subtitle">Enter your details to join</p>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="flash">{{ messages[0] }}</div>
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('register') }}">
+      <label class="field-label" for="full_name">Full Name</label>
+      <input
+        type="text"
+        id="full_name"
+        name="full_name"
+        placeholder="Juan Dela Cruz"
+        value="{{ full_name }}"
+        autocomplete="name"
+        required
+      />
+
+      <label class="field-label">Gender</label>
+      <div class="gender-toggle">
+        <input type="radio" id="male" name="gender" value="male" {% if gender=='male' %}checked{% endif %} required />
+        <label for="male" class="gender-btn">Male</label>
+
+        <input type="radio" id="female" name="gender" value="female" {% if gender=='female' %}checked{% endif %} required />
+        <label for="female" class="gender-btn">Female</label>
+      </div>
+
+      <label class="field-label" for="password">Password</label>
+      <input
+        type="password"
+        id="password"
+        name="password"
+        placeholder="Choose a password"
+        autocomplete="new-password"
+        required
+      />
+
+      <button type="submit" class="primary-btn">Continue</button>
+    </form>
+
+    <p class="subtitle" style="margin-top: 18px;">
+      Already registered? <a href="{{ url_for('login') }}">Log in instead</a>
+    </p>
+  </div>
+</div>
+{% endblock %}
